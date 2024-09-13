@@ -1,0 +1,44 @@
+# Ignore bundler config.
+/.bundle
+
+# Ignore all logfiles and tempfiles.
+/log/*
+!/log/.keep
+/tmp
+!/tmp/.keep
+
+# Ignore uploaded files in development.
+/storage/*
+!/storage/.keep
+
+# Ignore master key for decrypting credentials and more.
+/config/master.key
+/config/credentials.yml.enc
+
+# Ignore yarn and node modules
+/node_modules
+/yarn-error.log
+
+# Ignore the .byebug history file.
+/.byebug_history
+
+# Ignore database.
+/db/*.sqlite3
+/db/*.sqlite3-journal
+/db/*.pg
+/db/*.pg-journal
+
+# Ignore other unneeded files.
+/*.rbc
+/.sass-cache
+/.byebug_history
+/.rspec
+/log/*
+/tmp/*
+!/tmp/.keep
+!/log/.keep
+/vendor/bundle
+/public/system
+/public/uploads
+
+/config/database.yml
