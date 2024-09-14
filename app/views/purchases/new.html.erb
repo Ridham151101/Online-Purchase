@@ -1,0 +1,226 @@
+<%= form_with model: @order, url: purchases_path, method: :post, local: true do |f| %>
+  <div class="container mt-4">
+    <!-- Zipcode Input -->
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <div class="form-group">
+          <%= f.label :zipcode, "Zipcode" %>
+          <%= text_field_tag :zipcode, nil, class: "form-control", id: "zipcode_field", required: true, minlength: 7, maxlength: 7, placeholder: "Enter 7-digit zipcode" %>
+          <small id="zipcode_error" class="text-danger" style="display: none;">Invalid zipcode. Please enter a 7-digit zipcode.</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- State, City, Area Fields (Initially Hidden) -->
+    <div id="address_section" style="display: none;">
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <%= f.label :delivery_state, "State" %>
+          <%= f.text_field :delivery_state, class: "form-control", id: "state_field", readonly: true %>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <%= f.label :delivery_city, "City" %>
+          <%= f.text_field :delivery_city, class: "form-control", id: "city_field", readonly: true %>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <%= f.label :delivery_area, "Area" %>
+          <%= f.text_field :delivery_area, class: "form-control", id: "area_field", readonly: true %>
+        </div>
+      </div>
+
+      <!-- Address Input -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <%= f.label :delivery_address, "Address" %>
+          <%= f.text_field :delivery_address, class: "form-control", id: "address_field" %>
+        </div>
+      </div>
+
+      <!-- Item Information Section -->
+      <h3 class="form-title">Item Information</h3>
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+          <thead>
+            <tr>
+              <th>Warehouse Code</th>
+              <th>Item Name</th>
+              <th>Item Qty</th>
+              <th>Item Price</th>
+              <th>Total Price</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="itemTableBody">
+            <!-- Initial Item Row -->
+            <tr class="item-row">
+              <td><input type="text" class="form-control warehouse-code" name="items[][warehouse_code]" readonly></td>
+              <td>
+                <select class="form-control item-select" name="items[][item_name]">
+                  <option value="">Select Item</option>
+                </select>
+              </td>
+              <td><input type="number" class="form-control item-quantity" name="items[][quantity]" min="1" required></td>
+              <td><input type="number" class="form-control item-price" name="items[][price]" min="1" required></td>
+              <td><input type="number" class="form-control item-total-price" name="items[][total_price]" readonly></td>
+              <td><input type="hidden" class="item-stock" name="items[][stock]" value="0"></td>
+              <td><a href="#" class="remove-item btn btn-danger btn-sm">Remove</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <a href="#" id="addMoreItem" class="btn btn-link">+ Add More Item</a>
+
+      <!-- Total Calculation Section -->
+      <div class="total-section mt-4">
+        <input type="hidden" name="grand_total" id="grand_total_field">
+        <input type="hidden" name="tax" id="tax_field">
+        <input type="hidden" name="grand_total_after_tax" id="grand_total_after_tax_field">
+        <p>Total: <span id="total">0</span></p>
+        <p>Tax (10%): <span id="tax">0</span></p>
+        <p>Total Amount: <span id="totalAmount">0</span></p>
+      </div>
+    </div>
+
+    <div class="form-group mt-4">
+      <%= f.submit "Submit", class: "btn btn-primary" %>
+    </div>
+  </div>
+<% end %>
+
+<script>
+  document.addEventListener('turbo:load', () => {
+    const zipcodeField = document.getElementById("zipcode_field");
+    const zipcodeError = document.getElementById("zipcode_error");
+    const addressSection = document.getElementById("address_section");
+    const stateField = document.getElementById("state_field");
+    const cityField = document.getElementById("city_field");
+    const areaField = document.getElementById("area_field");
+    const itemTableBody = document.getElementById("itemTableBody");
+
+    // Helper function to validate zipcode
+    const isValidZipcode = (zipcode) => {
+      return /^[0-9]{7}$/.test(zipcode); // Must be exactly 7 digits
+    };
+
+    // Fetch state, city, and area based on zipcode
+    const fetchPostalCodeInfo = (zipcode) => {
+      fetch(`/zipcode_info?zipcode=${zipcode}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            zipcodeError.innerText = data.error;
+            zipcodeError.style.display = "block";
+          } else {
+            zipcodeError.style.display = "none";
+            addressSection.style.display = 'block';
+            stateField.value = data.state;
+            cityField.value = data.city;
+            areaField.value = data.area;
+            fetchItems(data.ew_flag); // Fetch items based on ew_flag
+          }
+        })
+        .catch(() => {
+          zipcodeError.innerText = "Error fetching zipcode details.";
+          zipcodeError.style.display = "block";
+        });
+    };
+
+    // Validate zipcode and fetch details
+    zipcodeField.addEventListener("input", (e) => {
+      const zipcode = e.target.value;
+      if (zipcode.length === 7 && isValidZipcode(zipcode)) {
+        fetchPostalCodeInfo(zipcode);
+      } else if (zipcode.length < 7) {
+        zipcodeError.innerText = "Please enter a 7-digit zipcode.";
+        zipcodeError.style.display = "block";
+        addressSection.style.display = "none";
+        stateField.value = "";
+        cityField.value = "";
+        areaField.value = "";
+      }
+    });
+
+    // Fetch items based on ew_flag
+    function fetchItems(ew_flag) {
+      fetch(`/items_for_ew_flag?ew_flag=${ew_flag}`)
+        .then(response => response.json())
+        .then(items => {
+          if (items.length > 0) {
+            document.querySelectorAll(".item-row").forEach(row => {
+              const warehouseCodeField = row.querySelector(".warehouse-code");
+              const itemSelect = row.querySelector(".item-select");
+
+              warehouseCodeField.value = items[0].warehouse_code || "N/A";  // Assign warehouse code
+
+              let options = '<option value="">Select Item</option>';
+              items.forEach(item => {
+                options += `<option value="${item.sku_code}">${item.sku_code}</option>`;
+              });
+              itemSelect.innerHTML = options;
+            });
+          }
+        })
+        .catch(() => {
+          console.error("Error fetching items.");
+        });
+    }
+
+    // Calculate total price for each item row and overall totals
+    const calculateTotals = () => {
+      let grandTotal = 0;
+      document.querySelectorAll(".item-row").forEach(row => {
+        const quantity = parseFloat(row.querySelector(".item-quantity").value) || 0;
+        const price = parseFloat(row.querySelector(".item-price").value) || 0;
+        const totalPriceField = row.querySelector(".item-total-price");
+
+        const totalPrice = quantity * price;
+        totalPriceField.value = totalPrice.toFixed(2);
+        grandTotal += totalPrice;
+      });
+
+      const tax = grandTotal * 0.10;
+      const grandTotalAfterTax = grandTotal + tax;
+
+      document.getElementById("total").innerText = grandTotal.toFixed(2);
+      document.getElementById("tax").innerText = tax.toFixed(2);
+      document.getElementById("totalAmount").innerText = grandTotalAfterTax.toFixed(2);
+
+      // Set hidden fields for total calculation
+      document.getElementById("grand_total_field").value = grandTotal.toFixed(2);
+      document.getElementById("tax_field").value = tax.toFixed(2);
+      document.getElementById("grand_total_after_tax_field").value = grandTotalAfterTax.toFixed(2);
+    };
+
+    // Event listeners for total price calculation
+    itemTableBody.addEventListener("input", (e) => {
+      if (e.target.classList.contains("item-quantity") || e.target.classList.contains("item-price")) {
+        calculateTotals();
+      }
+    });
+
+    // Add more item rows
+    document.getElementById("addMoreItem").addEventListener("click", (e) => {
+      e.preventDefault();
+      const newRow = itemTableBody.querySelector(".item-row").cloneNode(true);
+      newRow.querySelectorAll("input").forEach(input => input.value = ""); // Clear input values
+      itemTableBody.appendChild(newRow);
+      // Optionally update new rows with warehouse codes
+      fetchItems(); // Re-fetch items if necessary
+    });
+
+    // Remove item rows
+    itemTableBody.addEventListener("click", (e) => {
+      if (e.target.classList.contains("remove-item")) {
+        e.preventDefault();
+        if (itemTableBody.querySelectorAll(".item-row").length > 1) {
+          e.target.closest(".item-row").remove();
+          calculateTotals();
+        }
+      }
+    });
+  });
+</script>

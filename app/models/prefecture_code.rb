@@ -1,0 +1,2 @@
+class PrefectureCode < ApplicationRecord
+end

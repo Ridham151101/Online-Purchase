@@ -2,7 +2,7 @@
 <html>
   <head>
     <title>OnlinePurchase</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
@@ -11,6 +11,20 @@
   </head>
 
   <body>
-    <%= yield %>
+    <div class="container">
+      <% if flash[:notice] %>
+        <div class="alert alert-success">
+          <%= flash[:notice] %>
+        </div>
+      <% end %>
+
+      <% if flash[:alert] %>
+        <div class="alert alert-danger">
+          <%= flash[:alert] %>
+        </div>
+      <% end %>
+
+      <%= yield %>
+    </div>
   </body>
 </html>
